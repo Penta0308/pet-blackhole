@@ -6,10 +6,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::Context;
 use core::{PetState, TickInput};
-use platform::window::{PetWindow, WindowCommand};
+use platform::window::PetWindow;
 use renderer::vulkan::VulkanRenderer;
 use winit::application::ApplicationHandler;
-use winit::dpi::LogicalPosition;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
@@ -25,8 +24,8 @@ fn main() -> anyhow::Result<()> {
 }
 
 struct App {
-    window: Option<PetWindow>,
     renderer: Option<VulkanRenderer>,
+    window: Option<PetWindow>,
     pet: PetState,
     last_tick: Instant,
     cursor_position: (f32, f32),
@@ -38,8 +37,8 @@ struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
-            window: None,
             renderer: None,
+            window: None,
             pet: PetState::default(),
             last_tick: Instant::now(),
             cursor_position: (0.0, 0.0),
@@ -47,6 +46,17 @@ impl Default for App {
             drag_offset: (0.0, 0.0),
             next_redraw: Instant::now(),
         }
+    }
+}
+
+impl App {
+    fn quit(&mut self, event_loop: &ActiveEventLoop) {
+        if let Some(renderer) = self.renderer.take() {
+            renderer.wait_idle();
+            std::mem::forget(renderer);
+        }
+        self.window.take();
+        event_loop.exit();
     }
 }
 
@@ -93,7 +103,7 @@ impl ApplicationHandler for App {
         }
 
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => self.quit(event_loop),
             WindowEvent::CursorMoved { position, .. } => {
                 let logical = position.to_logical::<f64>(window.raw().scale_factor());
                 self.cursor_position = (logical.x as f32, logical.y as f32);
@@ -127,9 +137,7 @@ impl ApplicationHandler for App {
                 state: ElementState::Pressed,
                 button: MouseButton::Right,
                 ..
-            } => {
-                event_loop.exit();
-            }
+            } => self.quit(event_loop),
             WindowEvent::RedrawRequested => {
                 let now = Instant::now();
                 let dt = (now - self.last_tick).as_secs_f32().min(0.05);
@@ -147,12 +155,8 @@ impl ApplicationHandler for App {
                     dragging: self.dragging,
                 });
 
-                for command in self.pet.take_window_commands() {
-                    match command {
-                        WindowCommand::MoveTo { x, y } => {
-                            window.set_outer_position(LogicalPosition::new(x, y))
-                        }
-                    }
+                if let Some((x, y)) = self.pet.take_pending_move() {
+                    window.move_to(x, y);
                 }
 
                 let snapshot = self.pet.render_snapshot();

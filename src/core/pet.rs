@@ -1,7 +1,5 @@
 use std::time::{Duration, Instant};
 
-use crate::platform::window::WindowCommand;
-
 const NODE_COUNT: usize = 24;
 const REST_CENTER: glam::Vec2 = glam::Vec2::new(0.5, 0.5);
 const REST_RADIUS: glam::Vec2 = glam::Vec2::new(0.145, 0.128);
@@ -51,7 +49,7 @@ pub struct PetState {
     node_velocity: [glam::Vec2; NODE_COUNT],
     last_window_pos: Option<glam::Vec2>,
     drag_slosh: glam::Vec2,
-    pending_window_commands: Vec<WindowCommand>,
+    pending_move: Option<(f64, f64)>,
 }
 
 impl Default for PetState {
@@ -69,7 +67,7 @@ impl Default for PetState {
             node_velocity: [glam::Vec2::ZERO; NODE_COUNT],
             last_window_pos: None,
             drag_slosh: glam::Vec2::ZERO,
-            pending_window_commands: Vec::new(),
+            pending_move: None,
         }
     }
 }
@@ -92,7 +90,7 @@ impl PetState {
     }
 
     pub fn tick(&mut self, input: TickInput) {
-        self.pending_window_commands.clear();
+        self.pending_move = None;
         self.age += input.dt;
         self.idle_for = Instant::now().saturating_duration_since(self.last_activity);
 
@@ -138,8 +136,8 @@ impl PetState {
         }
     }
 
-    pub fn take_window_commands(&mut self) -> Vec<WindowCommand> {
-        std::mem::take(&mut self.pending_window_commands)
+    pub fn take_pending_move(&mut self) -> Option<(f64, f64)> {
+        self.pending_move.take()
     }
 
     pub fn hit_test(&self, cursor: (f32, f32), window_size: (f64, f64)) -> bool {
@@ -317,10 +315,7 @@ impl PetState {
         let desired = (self.wander_target - current).clamp_length_max(26.0);
         self.velocity = self.velocity.lerp(desired, (input.dt * 0.8).min(1.0));
         let next = current + self.velocity * input.dt;
-        self.pending_window_commands.push(WindowCommand::MoveTo {
-            x: f64::from(next.x),
-            y: f64::from(next.y),
-        });
+        self.pending_move = Some((f64::from(next.x), f64::from(next.y)));
     }
 }
 

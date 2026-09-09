@@ -1,6 +1,16 @@
 use std::process::Command;
 
 fn main() {
+    #[cfg(windows)]
+    {
+        println!("cargo:rerun-if-changed=assets/icon.ico");
+        let mut resource = winresource::WindowsResource::new();
+        resource.set_icon("assets/icon.ico");
+        resource
+            .compile()
+            .expect("failed to embed Windows resources");
+    }
+
     println!("cargo:rerun-if-changed=shaders/slime.vert");
     println!("cargo:rerun-if-changed=shaders/slime.frag");
 

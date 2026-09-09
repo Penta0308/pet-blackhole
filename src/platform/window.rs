@@ -7,11 +7,6 @@ use winit::window::{Window, WindowAttributes, WindowLevel};
 
 use crate::core::pet::Rect;
 
-#[derive(Debug, Clone, Copy)]
-pub enum WindowCommand {
-    MoveTo { x: f64, y: f64 },
-}
-
 pub struct PetWindow {
     window: Window,
 }
@@ -58,8 +53,8 @@ impl PetWindow {
             .set_outer_position(LogicalPosition::new(new_x, new_y));
     }
 
-    pub fn set_outer_position(&self, position: LogicalPosition<f64>) {
-        self.window.set_outer_position(position);
+    pub fn move_to(&self, x: f64, y: f64) {
+        self.window.set_outer_position(LogicalPosition::new(x, y));
     }
 
     pub fn apply_hit_region(&self, points: &[[f32; 2]]) {
@@ -95,8 +90,8 @@ impl PetWindow {
         let polygon: Vec<POINT> = points
             .iter()
             .map(|p| {
-                let x = center[0] + (p[0] - center[0]) * 1.18;
-                let y = center[1] + (p[1] - center[1]) * 1.18;
+                let x = center[0] + (p[0] - center[0]) * 1.55;
+                let y = center[1] + (p[1] - center[1]) * 1.55;
                 POINT {
                     x: (x.clamp(0.0, 1.0) * w).round() as i32,
                     y: (y.clamp(0.0, 1.0) * h).round() as i32,

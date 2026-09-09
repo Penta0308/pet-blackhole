@@ -156,6 +156,12 @@ impl VulkanRenderer {
         self.resized = true;
     }
 
+    pub fn wait_idle(&self) {
+        unsafe {
+            let _ = self.device.device_wait_idle();
+        }
+    }
+
     pub fn render(&mut self, snapshot: &PetRenderSnapshot) -> anyhow::Result<()> {
         if self.extent.width == 0 || self.extent.height == 0 {
             return Ok(());
@@ -419,6 +425,16 @@ impl Drop for VulkanRenderer {
             if self.command_pool != vk::CommandPool::null() {
                 self.device.destroy_command_pool(self.command_pool, None);
             }
+            for &fb in &self.framebuffers {
+                self.device.destroy_framebuffer(fb, None);
+            }
+            if self.pipeline != vk::Pipeline::null() {
+                self.device.destroy_pipeline(self.pipeline, None);
+            }
+            if self.pipeline_layout != vk::PipelineLayout::null() {
+                self.device
+                    .destroy_pipeline_layout(self.pipeline_layout, None);
+            }
             if self.descriptor_pool != vk::DescriptorPool::null() {
                 self.device
                     .destroy_descriptor_pool(self.descriptor_pool, None);
@@ -431,16 +447,6 @@ impl Drop for VulkanRenderer {
                 self.device.unmap_memory(buffer.memory);
                 self.device.destroy_buffer(buffer.buffer, None);
                 self.device.free_memory(buffer.memory, None);
-            }
-            for &fb in &self.framebuffers {
-                self.device.destroy_framebuffer(fb, None);
-            }
-            if self.pipeline != vk::Pipeline::null() {
-                self.device.destroy_pipeline(self.pipeline, None);
-            }
-            if self.pipeline_layout != vk::PipelineLayout::null() {
-                self.device
-                    .destroy_pipeline_layout(self.pipeline_layout, None);
             }
             if self.render_pass != vk::RenderPass::null() {
                 self.device.destroy_render_pass(self.render_pass, None);
