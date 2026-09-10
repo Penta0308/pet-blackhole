@@ -10,6 +10,8 @@ layout(std430, set = 0, binding = 0) readonly buffer PetShape {
 layout(push_constant) uniform PetParams {
     float time;
     float opacity;
+    float residue;
+    float _pad;
 } pet;
 
 float hash(vec2 p) {
@@ -58,16 +60,16 @@ void main() {
 
     float uneven = mix(0.988, 1.015, value_noise(uv * 2.4 + vec2(pet.time * 0.002, 0.0)));
 
-    vec3 amber = vec3(0.43, 0.265, 0.120);
-    vec3 warm_brown = vec3(0.245, 0.140, 0.067);
-    vec3 deep_umber = vec3(0.108, 0.062, 0.036);
-    vec3 color = mix(amber, warm_brown, inner * 0.54);
-    color = mix(color, deep_umber, smoothstep(-0.09, -0.22, d) * 0.42);
+    vec3 amber = mix(vec3(0.40, 0.31, 0.22), vec3(0.38, 0.22, 0.10), pet.residue);
+    vec3 warm_brown = mix(vec3(0.25, 0.19, 0.14), vec3(0.21, 0.12, 0.065), pet.residue);
+    vec3 deep_umber = mix(vec3(0.11, 0.085, 0.070), vec3(0.085, 0.050, 0.035), pet.residue);
+    vec3 color = mix(amber, warm_brown, inner * (0.46 + pet.residue * 0.16));
+    color = mix(color, deep_umber, smoothstep(-0.09, -0.22, d) * (0.34 + pet.residue * 0.18));
 
     float boundary = exp(-abs(d) * 17.0) * 0.12;
     color += vec3(0.09, 0.022, 0.004) * boundary;
 
-    float alpha = stain * (0.13 + inner * 0.18) * pet.opacity * uneven;
+    float alpha = stain * (0.12 + inner * (0.15 + pet.residue * 0.08)) * pet.opacity * uneven;
     alpha *= 1.0 + 0.006 * sin(pet.time * 0.8);
 
     out_color = vec4(color, clamp(alpha, 0.0, 0.32));

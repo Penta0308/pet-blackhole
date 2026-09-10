@@ -16,6 +16,8 @@ const FRAG_SPV: &[u8] = include_bytes!("../../target/slime.frag.spv");
 struct PushConstants {
     time: f32,
     opacity: f32,
+    residue: f32,
+    _pad: f32,
 }
 
 #[repr(C)]
@@ -288,6 +290,8 @@ impl VulkanRenderer {
         let pc = PushConstants {
             time: snapshot.time * snapshot.wobble.max(0.05),
             opacity: snapshot.opacity,
+            residue: snapshot.residue,
+            _pad: 0.0,
         };
         let pc_bytes = std::slice::from_raw_parts(
             (&pc as *const PushConstants).cast::<u8>(),

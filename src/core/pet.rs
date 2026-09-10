@@ -19,6 +19,7 @@ pub struct TickInput {
     pub window_size: (f64, f64),
     pub monitor: Rect,
     pub dragging: bool,
+    pub system_idle: Option<Duration>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -27,6 +28,7 @@ pub struct PetRenderSnapshot {
     pub opacity: f32,
     pub points: [[f32; 2]; NODE_COUNT],
     pub wobble: f32,
+    pub residue: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,6 +51,7 @@ pub struct PetState {
     node_velocity: [glam::Vec2; NODE_COUNT],
     last_window_pos: Option<glam::Vec2>,
     drag_slosh: glam::Vec2,
+    residue: f32,
     pending_move: Option<(f64, f64)>,
 }
 
@@ -67,6 +70,7 @@ impl Default for PetState {
             node_velocity: [glam::Vec2::ZERO; NODE_COUNT],
             last_window_pos: None,
             drag_slosh: glam::Vec2::ZERO,
+            residue: 0.0,
             pending_move: None,
         }
     }
@@ -94,11 +98,14 @@ impl PetState {
         self.age += input.dt;
         self.idle_for = Instant::now().saturating_duration_since(self.last_activity);
 
+        self.update_residue(input.dt, input.system_idle);
+
+        let idle_for = input.system_idle.unwrap_or(self.idle_for);
         if input.dragging {
             self.mode = PetMode::Dragging;
-        } else if self.idle_for > Duration::from_secs(300) {
+        } else if idle_for > Duration::from_secs(300) {
             self.mode = PetMode::Sleeping;
-        } else if self.idle_for > Duration::from_secs(45) {
+        } else if idle_for > Duration::from_secs(45) {
             self.mode = PetMode::Wandering;
         } else if self.mode != PetMode::Dragging {
             self.mode = PetMode::Idle;
@@ -125,7 +132,7 @@ impl PetState {
     pub fn render_snapshot(&self) -> PetRenderSnapshot {
         PetRenderSnapshot {
             time: self.age,
-            opacity: 0.78,
+            opacity: 0.58 + self.residue * 0.26,
             points: self.nodes.map(|p| [p.x, p.y]),
             wobble: match self.mode {
                 PetMode::Dragging => 1.0,
@@ -133,6 +140,7 @@ impl PetState {
                 PetMode::Idle => 0.25,
                 PetMode::Sleeping => 0.08,
             },
+            residue: self.residue,
         }
     }
 
@@ -165,6 +173,19 @@ impl PetState {
         }
 
         dist <= radius_sum / weight_sum + 0.08
+    }
+
+    fn update_residue(&mut self, dt: f32, system_idle: Option<Duration>) {
+        let active = system_idle.is_some_and(|idle| idle < Duration::from_secs(2));
+        let resting = system_idle.is_some_and(|idle| idle > Duration::from_secs(20));
+        let rate = if active {
+            dt / 210.0
+        } else if resting {
+            -dt / 120.0
+        } else {
+            -dt / 420.0
+        };
+        self.residue = (self.residue + rate).clamp(0.0, 1.0);
     }
 
     fn update_drag_slosh(&mut self, input: &TickInput) {
@@ -236,9 +257,11 @@ impl PetState {
             let vertical_contact = top.max(bottom);
             let rest = rest_node(i);
             let relative = rest - REST_CENTER;
+            let residue_sag = self.residue * 0.10;
             let anisotropic = glam::Vec2::new(
                 relative.x * (1.0 - horizontal_contact * 0.36 + vertical_contact * 0.16),
-                relative.y * (1.0 - vertical_contact * 0.36 + horizontal_contact * 0.22),
+                relative.y
+                    * (1.0 + residue_sag - vertical_contact * 0.36 + horizontal_contact * 0.22),
             );
             let slosh_strength = if self.mode == PetMode::Dragging {
                 1.0

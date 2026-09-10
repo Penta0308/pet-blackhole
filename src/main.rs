@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::Context;
 use core::{PetState, TickInput};
-use platform::window::PetWindow;
+use platform::{activity::system_idle_time, window::PetWindow};
 use renderer::vulkan::VulkanRenderer;
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, MouseButton, WindowEvent};
@@ -153,6 +153,7 @@ impl ApplicationHandler for App {
                     window_size,
                     monitor,
                     dragging: self.dragging,
+                    system_idle: system_idle_time(),
                 });
 
                 if let Some((x, y)) = self.pet.take_pending_move() {
