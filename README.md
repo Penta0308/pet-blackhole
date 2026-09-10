@@ -19,3 +19,9 @@ Right-click the pet to quit.
 ## Status
 
 This is an early prototype. It currently targets a native desktop app with Vulkan rendering and no web view.
+
+## Copyright
+
+Copyright (c) 2026 Penta0308. All rights reserved.
+
+Provided as-is, without warranty. Use at your own risk.
